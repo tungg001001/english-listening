@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ListeningMaster - 英文聽講大師</title>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React 18 & ReactDOM UMD -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+    <!-- Babel Standalone -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      @keyframes pulse-red {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.05); }
+      }
+      .animate-recording {
+        animation: pulse-red 1.5s infinite ease-in-out;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fadeIn {
+        animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+    </style>
+  </head>
+  <body class="bg-[#F8FAFC] text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900 min-h-screen flex flex-col">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect, useRef } = React;
+
+      // React-safe SVG Icon component
+      const Icon = ({ name, className = "w-4 h-4" }) => {
+        const svgMap = {
+          'headphones': <><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z"/><path d="M18 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z"/><path d="M2 14v-3a10 10 0 0 1 20 0v3"/></>,
+          'mic': <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></>,
+          'volume-2': <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></>,
+          'play': <polygon points="5 3 19 12 5 21 5 3"/>,
+          'square': <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>,
+          'check-circle': <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
+          'sparkles': <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>,
+          'zap': <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
+          'edit-3': <><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></>,
+          'info': <><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></>,
+          'clock': <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+          'message-square': <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>,
+          'award': <><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></>
+        };
+
+        return (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+          >
+            {svgMap[name] || null}
+          </svg>
+        );
+      };
+
+      // Web Speech API Voice TTS Utility
+      const speakSentence = (text, rate = 1.0) => {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'en-US';
+          utterance.rate = rate;
+          window.speechSynthesis.speak(utterance);
+        }
+      };
+
+      // SCENARIO DIALOGUES DATASET (10 Complete Scenarios)
+      const DIALOGUES_DATA = [
+        {
+          id: 'coffee-shop',
+          title: '咖啡廳點餐 (Ordering Coffee)',
+          category: '日常生活',
+          difficulty: '初級 (Basic)',
+          description: '練習日常點咖啡、選擇奶類與甜度、外帶內用的實用對話。',
+          lines: [
+            { speaker: 'Barista', text: 'Hi there! What can I get started for you today?', zh: '嗨！今天想喝點什麼呢？', note: 'get started for you: 點餐常用的親切開場白' },
+            { speaker: 'Customer', text: 'I\'d like an iced oat milk latte, please.', zh: '我想點一杯冰燕麥奶拿鐵，謝謝。', note: 'I\'d like...: 禮貌表達「我想要」' },
+            { speaker: 'Barista', text: 'Sure thing! What size would you like, medium or large?', zh: '好的！請問要中杯還是大杯？', note: 'Sure thing: 沒問題、好的' },
+            { speaker: 'Customer', text: 'A medium, please. And could you make it less ice?', zh: '中杯的，謝謝。另外可以幫我做少冰嗎？', note: 'less ice: 少冰；no ice: 去冰' },
+            { speaker: 'Barista', text: 'No problem. Will that be for here or to go?', zh: '沒問題。請問要內用還是外帶呢？', note: 'for here or to go: 內用還是外帶' },
+            { speaker: 'Customer', text: 'To go, please. Here is my credit card.', zh: '外帶，謝謝。這是我的信用卡。', note: 'To go: 外帶' }
+          ]
+        },
+        {
+          id: 'job-interview',
+          title: '職場求職面試 (Job Interview)',
+          category: '職場商務',
+          difficulty: '中級 (Intermediate)',
+          description: '學習面試時如何自信自我介紹、說明個人優勢與工作經驗。',
+          lines: [
+            { speaker: 'Interviewer', text: 'Welcome to our company. Could you briefly introduce yourself?', zh: '歡迎來到我們公司。可以請您簡短自我介紹嗎？', note: 'briefly introduce yourself: 簡短自我介紹' },
+            { speaker: 'Applicant', text: 'Thank you for having me. I have over three years of experience in digital marketing.', zh: '感謝您給我這個面試機會。我在數位行銷領域有超過三年的經驗。', note: 'Thank you for having me: 感謝您邀請我' },
+            { speaker: 'Interviewer', text: 'That\'s impressive. What do you consider your greatest strength?', zh: '相當令人印象深刻。您認為自己最大的優勢是什麼？', note: 'greatest strength: 最大的特長/優勢' },
+            { speaker: 'Applicant', text: 'My strength is data analysis and finding innovative solutions under tight deadlines.', zh: '我的特長是數據分析，並能在緊迫期限下找出創新的解決方案。', note: 'under tight deadlines: 在緊迫的期限下' }
+          ]
+        },
+        {
+          id: 'airport-checkin',
+          title: '機場登機與行李託運 (Airport Check-in)',
+          category: '旅遊出行',
+          difficulty: '中級 (Intermediate)',
+          description: '模擬機場櫃檯報到、選擇座位與託行李之問答對話。',
+          lines: [
+            { speaker: 'Agent', text: 'Good morning! May I see your passport and flight booking reference?', zh: '早安！請出示您的護照與航班預訂號碼好嗎？', note: 'booking reference: 預訂參考碼/訂位代號' },
+            { speaker: 'Passenger', text: 'Here you go. I\'d like an aisle seat if available, please.', zh: '給你。如果有位置的話，我希望能坐靠走道的座位。', note: 'aisle seat: 靠走道座位；window seat: 靠窗座位' },
+            { speaker: 'Agent', text: 'Certainly. How many bags will you be checking in today?', zh: '沒問題。請問今天有幾件托運行李呢？', note: 'checking in: 託運' },
+            { speaker: 'Passenger', text: 'Just this one suitcase. Here is your boarding pass. Gate 12.', zh: '只有這個行李箱。這是您的登機證，登機門在 12 號。', note: 'boarding pass: 登機證' }
+          ]
+        },
+        {
+          id: 'hotel-checkin',
+          title: '飯店入住登記 (Hotel Check-in)',
+          category: '旅遊出行',
+          difficulty: '初級 (Basic)',
+          description: '飯店櫃檯辦理入住手續、確認房型與早餐時間之實用對話。',
+          lines: [
+            { speaker: 'Receptionist', text: 'Welcome to Grand Hotel! How can I help you today?', zh: '歡迎來到大飯店！今天有什麼能為您服務的嗎？', note: 'Welcome to...: 歡迎來到' },
+            { speaker: 'Guest', text: 'Hi, I have a reservation under the name of Smith.', zh: '嗨，我有預訂房間，名字是 Smith。', note: 'under the name of: 以...的名字預訂' },
+            { speaker: 'Receptionist', text: 'Let me check that for you. Yes, a deluxe room for two nights.', zh: '讓我為您核對一下。是的，是一間雙人豪華房，入住兩晚。', note: 'deluxe room: 豪華房' },
+            { speaker: 'Guest', text: 'Great! What time is breakfast served in the morning?', zh: '太好了！請問早上早餐幾點供應呢？', note: 'breakfast served: 早餐供應時間' }
+          ]
+        },
+        {
+          id: 'restaurant-dining',
+          title: '餐廳訂位與點餐 (Restaurant Dining)',
+          category: '日常生活',
+          difficulty: '中級 (Intermediate)',
+          description: '學習如何在西餐廳詢問招牌菜、點餐與確認飲食限制。',
+          lines: [
+            { speaker: 'Waiter', text: 'Are you ready to order, or do you need a few more minutes?', zh: '請問您準備好點餐了嗎，還是需要再幾分鐘？', note: 'ready to order: 準備好點餐' },
+            { speaker: 'Customer', text: 'We are ready. What do you recommend for the main course?', zh: '我們準備好了。請問主菜您有什麼推薦的嗎？', note: 'main course: 主菜' },
+            { speaker: 'Waiter', text: 'Our grilled salmon with herbs is very popular today.', zh: '我們今天的香草煎鮭魚非常受歡迎。', note: 'grilled salmon: 煎/烤鮭魚' },
+            { speaker: 'Customer', text: 'Sounds delicious! I will go with the grilled salmon, please.', zh: '聽起來很美味！那我就點煎鮭魚，謝謝。', note: 'go with: 選擇/決定點...' }
+          ]
+        },
+        {
+          id: 'asking-directions',
+          title: '街頭問路指引 (Asking Directions)',
+          category: '旅遊出行',
+          difficulty: '初級 (Basic)',
+          description: '在國外街頭迷路時，如何禮貌向路人詢問地鐵站或景點位置。',
+          lines: [
+            { speaker: 'Tourist', text: 'Excuse me, could you tell me how to get to the museum?', zh: '不好意思，可以請您告訴我博物館怎麼走嗎？', note: 'how to get to...: 如何前往某地' },
+            { speaker: 'Local', text: 'Sure! Go straight for two blocks and turn left at the traffic light.', zh: '沒問題！直走兩個街區，然後在紅綠燈處左轉。', note: 'traffic light: 紅綠燈' },
+            { speaker: 'Tourist', text: 'Is it within walking distance from here?', zh: '請問從這裡走路過去會很遠嗎？', note: 'within walking distance: 步行距離內' },
+            { speaker: 'Local', text: 'Yes, it only takes about five minutes on foot.', zh: '會的，走路大概只要五分鐘。', note: 'on foot: 步行' }
+          ]
+        },
+        {
+          id: 'shopping-exchange',
+          title: '服飾購物與退換貨 (Shopping & Exchange)',
+          category: '日常生活',
+          difficulty: '中級 (Intermediate)',
+          description: '挑選衣服尺寸、試穿以及購買後退換貨對話。',
+          lines: [
+            { speaker: 'Customer', text: 'Hi, I bought this jacket yesterday, but it is a bit too small.', zh: '嗨，我昨天買了這件外套，但有點太小了。', note: 'a bit too small: 有點太小' },
+            { speaker: 'Clerk', text: 'No problem! Do you have the original receipt with you?', zh: '沒問題！請問您有帶原始收據嗎？', note: 'receipt: 收據/發票' },
+            { speaker: 'Customer', text: 'Yes, I have it right here. Can I exchange it for a larger size?', zh: '有的，就在這裡。請問我可以換大一點的尺寸嗎？', note: 'exchange for...: 兌換/更換為...' },
+            { speaker: 'Clerk', text: 'Let me check our stock. We have a medium size available for you.', zh: '讓我查一下庫存。我們目前有中號現貨可以換給您。', note: 'available: 可獲得的/有現貨的' }
+          ]
+        },
+        {
+          id: 'doctor-visit',
+          title: '診所看診描述症狀 (Visiting the Doctor)',
+          category: '日常生活',
+          difficulty: '中級 (Intermediate)',
+          description: '向醫生清楚描述發燒、咳嗽與身體不適狀況。',
+          lines: [
+            { speaker: 'Doctor', text: 'Good afternoon. What seems to be the problem today?', zh: '午安。請問您今天哪裡不舒服呢？', note: 'What seems to be the problem?: 哪裡不舒服？' },
+            { speaker: 'Patient', text: 'I have had a sore throat and a high fever since last night.', zh: '我從昨晚開始喉嚨痛而且發高燒。', note: 'sore throat: 喉嚨痛；high fever: 發高燒' },
+            { speaker: 'Doctor', text: 'Let me take your temperature and check your throat.', zh: '讓我為您量一下體溫並檢查您的喉嚨。', note: 'take your temperature: 量體溫' },
+            { speaker: 'Patient', text: 'Is it serious? Do I need to take time off work?', zh: '嚴重嗎？我需要請假休息嗎？', note: 'take time off work: 向公司請假' }
+          ]
+        },
+        {
+          id: 'business-meeting',
+          title: '職場會議意見討論 (Business Meeting)',
+          category: '職場商務',
+          difficulty: '高級 (Advanced)',
+          description: '商務會議中如何發表看法、提出建議與應對反對意見。',
+          lines: [
+            { speaker: 'Manager', text: 'Let\'s move on to the next topic: our marketing budget for Q3.', zh: '我們接著進行下一個議題：第三季度的行銷預算。', note: 'move on to: 推進至下一個主題' },
+            { speaker: 'Colleague', text: 'In my opinion, we should allocate more funds to social media ads.', zh: '依我看，我們應該分配更多資金在社群媒體廣告上。', note: 'allocate funds to: 分配資金至...' },
+            { speaker: 'Manager', text: 'That makes sense. What kind of ROI can we expect from that?', zh: '有道理。那我們可以預期得到怎樣的投資回報率 (ROI)？', note: 'ROI (Return on Investment): 投資回報率' }
+          ]
+        },
+        {
+          id: 'customer-service',
+          title: '客服與技術支援諮詢 (Customer Service)',
+          category: '職場商務',
+          difficulty: '中級 (Intermediate)',
+          description: '聯繫客服回報網路故障或產品問題之溝通對話。',
+          lines: [
+            { speaker: 'Agent', text: 'Thank you for calling technical support. How may I assist you?', zh: '感謝您致電技術支援部門。請問有什麼能為您服務的？', note: 'assist you: 協助您' },
+            { speaker: 'Customer', text: 'My internet connection keeps dropping every few minutes.', zh: '我的網路連線每隔幾分鐘就會斷線。', note: 'drops connection: 網路斷線' },
+            { speaker: 'Agent', text: 'I am sorry to hear that. Have you tried restarting your router?', zh: '很抱歉聽到這個狀況。請問您嘗試過重啟路由器嗎？', note: 'restarting your router: 重啟路由器' }
+          ]
+        }
+      ];
+
+      // SPEAKING PHRASEBOOK DATASET (萬用口說句型庫)
+      const SPEAKING_PHRASES = [
+        {
+          category: '提出建議 (Making Suggestions)',
+          phrase: 'Why don\'t we try...',
+          zh: '我們為什麼不嘗試...',
+          example: 'Why don\'t we try a different approach to solve this issue?',
+          exampleZh: '我們為什麼不嘗試用不同的方法來解決這個問題呢？'
+        },
+        {
+          category: '禮貌拒絕 (Polite Refusal)',
+          phrase: 'I\'d love to, but unfortunately...',
+          zh: '我很樂意，但很遺憾...',
+          example: 'I\'d love to join the meeting, but unfortunately I have a prior conflict.',
+          exampleZh: '我很樂意參加會議，但很遺憾我有其他時間衝突。'
+        },
+        {
+          category: '表達同意 (Expressing Agreement)',
+          phrase: 'I completely agree with your point about...',
+          zh: '我完全同意你關於...的觀點。',
+          example: 'I completely agree with your point about improving customer experience.',
+          exampleZh: '我完全同意你關於提升客戶體驗的觀點。'
+        },
+        {
+          category: '澄清與確認 (Asking for Clarification)',
+          phrase: 'Could you please clarify what you mean by...',
+          zh: '您能否澄清一下您說的...是什麼意思？',
+          example: 'Could you please clarify what you mean by the new deadline?',
+          exampleZh: '您能否澄清一下您說的新截止日期是什麼意思？'
+        }
+      ];
+
+      // PRONUNCIATION & CONNECTED SPEECH RULES
+      const SPEECH_RULES = [
+        {
+          title: '1. 連音 (Linking Words)',
+          concept: '前一個字的「輔音 (Consonant)」連到下一個字的「母音 (Vowel)」。',
+          example: 'check in ➔ 聽起來像 "che-kin" | turn off ➔ "tur-noff"',
+          sentence: 'Can I check in now?',
+          phoneticHint: '/kæn aɪ tʃekɪn naʊ/'
+        },
+        {
+          title: '2. 閃音 T (Flap T)',
+          concept: '當 T 夾在兩個母音中間時，美式發音會轉為輕快的 /d/ 或類似彈舌音。',
+          example: 'water ➔ "wa-der" | better ➔ "be-der" | city ➔ "ci-dy"',
+          sentence: 'I feel much better today.',
+          phoneticHint: '/aɪ fiːl mʌtʃ ˈbe.dər təˈdeɪ/'
+        },
+        {
+          title: '3. 省音與弱化 (Elision & Reduction)',
+          concept: '介詞或助動詞如 to, for, and, of 在快速口語中音節會縮短弱化。',
+          example: 'want to ➔ "wanna" | going to ➔ "gonna" | fish and chips ➔ "fish \'n\' chips"',
+          sentence: 'I am gonna order a coffee.',
+          phoneticHint: '/aɪ æm ˈɡənə ˈɔːrdər ə ˈkɔːfi/'
+        }
+      ];
+
+      // DICTATION QUIZ DATASET (10 Complete Questions)
+      const DICTATION_QUIZ = [
+        {
+          id: 1,
+          audioText: 'I would like a medium oat milk latte to go.',
+          blankSentence: 'I would like a medium ___ milk latte to go.',
+          correctAnswer: 'oat',
+          hint: '一種常見植物奶（燕麥）'
+        },
+        {
+          id: 2,
+          audioText: 'My greatest strength is data analysis.',
+          blankSentence: 'My greatest strength is ___ analysis.',
+          correctAnswer: 'data',
+          hint: '資料/數據'
+        },
+        {
+          id: 3,
+          audioText: 'How many bags will you be checking in today?',
+          blankSentence: 'How many bags will you be ___ in today?',
+          correctAnswer: 'checking',
+          hint: '辦理託運/報到'
+        },
+        {
+          id: 4,
+          audioText: 'I have a reservation under the name of Smith.',
+          blankSentence: 'I have a ___ under the name of Smith.',
+          correctAnswer: 'reservation',
+          hint: '預訂/訂位'
+        },
+        {
+          id: 5,
+          audioText: 'Could you please speak a little more slowly?',
+          blankSentence: 'Could you please speak a little more ___?',
+          correctAnswer: 'slowly',
+          hint: '慢速地'
+        },
+        {
+          id: 6,
+          audioText: 'Our flight has been delayed for two hours.',
+          blankSentence: 'Our flight has been ___ for two hours.',
+          correctAnswer: 'delayed',
+          hint: '延誤/耽擱'
+        },
+        {
+          id: 7,
+          audioText: 'Can I get a receipt for my purchase?',
+          blankSentence: 'Can I get a ___ for my purchase?',
+          correctAnswer: 'receipt',
+          hint: '收據/發票'
+        },
+        {
+          id: 8,
+          audioText: 'Would you like to leave a message for him?',
+          blankSentence: 'Would you like to leave a ___ for him?',
+          correctAnswer: 'message',
+          hint: '留言/訊息'
+        },
+        {
+          id: 9,
+          audioText: 'Is there free Wi-Fi available in the room?',
+          blankSentence: 'Is there free Wi-Fi ___ in the room?',
+          correctAnswer: 'available',
+          hint: '可使用的/現有的'
+        },
+        {
+          id: 10,
+          audioText: 'Thank you for your assistance with this project.',
+          blankSentence: 'Thank you for your ___ with this project.',
+          correctAnswer: 'assistance',
+          hint: '協助/幫助'
+        }
+      ];
+
+      function App() {
+        const [activeTab, setActiveTab] = useState('dialogues'); // 'dialogues' | 'speaking' | 'rules' | 'dictation'
+        const [selectedDialogueIndex, setSelectedDialogueIndex] = useState(0);
+        const [playbackRate, setPlaybackRate] = useState(1.0);
+        const [activeLineIdx, setActiveLineIdx] = useState(null);
+
+        // Recording & Speech Recognition States
+        const [isRecording, setIsRecording] = useState(false);
+        const [recordedAudioUrl, setRecordedAudioUrl] = useState(null);
+        const [recognizedText, setRecognizedText] = useState('');
+        const [speakingScore, setSpeakingScore] = useState(null);
+
+        const mediaRecorderRef = useRef(null);
+        const audioChunksRef = useRef([]);
+        const recognitionRef = useRef(null);
+
+        // Dictation Quiz States
+        const [userInputs, setUserInputs] = useState({});
+        const [quizResults, setQuizResults] = useState({});
+
+        const currentDialogue = DIALOGUES_DATA[selectedDialogueIndex];
+
+        // Calculate Levenshtein-style accuracy percentage
+        const calculateAccuracy = (target, actual) => {
+          if (!actual) return 0;
+          const cleanTarget = target.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().split(' ');
+          const cleanActual = actual.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().split(' ');
+
+          let matches = 0;
+          cleanTarget.forEach((word) => {
+            if (cleanActual.includes(word)) matches++;
+          });
+
+          return Math.round((matches / cleanTarget.length) * 100);
+        };
+
+        // Start/Stop Recording with Web Speech Recognition
+        const toggleRecording = async (targetText) => {
+          if (isRecording) {
+            if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
+            if (recognitionRef.current) recognitionRef.current.stop();
+            setIsRecording(false);
+          } else {
+            setRecognizedText('');
+            setSpeakingScore(null);
+            setRecordedAudioUrl(null);
+
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              mediaRecorderRef.current = new MediaRecorder(stream);
+              audioChunksRef.current = [];
+
+              mediaRecorderRef.current.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunksRef.current.push(event.data);
+              };
+
+              mediaRecorderRef.current.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                setRecordedAudioUrl(audioUrl);
+              };
+
+              mediaRecorderRef.current.start();
+
+              // Initialize SpeechRecognition if supported
+              const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+              if (SpeechRecognition) {
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'en-US';
+                recognition.continuous = false;
+                recognition.interimResults = false;
+
+                recognition.onresult = (event) => {
+                  const transcript = event.results[0][0].transcript;
+                  setRecognizedText(transcript);
+                  if (targetText) {
+                    const score = calculateAccuracy(targetText, transcript);
+                    setSpeakingScore(score);
+                  }
+                };
+
+                recognitionRef.current = recognition;
+                recognition.start();
+              }
+
+              setIsRecording(true);
+            } catch (err) {
+              alert('無法啟用麥克風，請確認瀏覽器已允許麥克風存取權限。');
+            }
+          }
+        };
+
+        const handleDictationCheck = (qId, answer) => {
+          const userVal = (userInputs[qId] || '').trim().toLowerCase();
+          const correctVal = answer.toLowerCase();
+          setQuizResults({
+            ...quizResults,
+            [qId]: userVal === correctVal
+          });
+        };
+
+        return (
+          <div className="flex-1 flex flex-col min-h-screen">
+            {/* Header */}
+            <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+              <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('dialogues')}>
+                  <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-indigo-200">
+                    L
+                  </div>
+                  <div>
+                    <h1 className="font-extrabold text-slate-900 text-lg sm:text-xl leading-none">ListeningMaster</h1>
+                    <span className="text-[10px] font-extrabold text-indigo-600 tracking-wider uppercase mt-1 block">英文聽講大師</span>
+                  </div>
+                </div>
+
+                <nav className="flex items-center space-x-1 sm:space-x-2 bg-slate-100 p-1.5 rounded-2xl text-xs sm:text-sm font-bold">
+                  <button
+                    onClick={() => setActiveTab('dialogues')}
+                    className={`px-3.5 py-2 rounded-xl transition-all flex items-center space-x-1.5 ${
+                      activeTab === 'dialogues' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon name="headphones" className="w-4 h-4" />
+                    <span>情境聽力與跟讀</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('speaking')}
+                    className={`px-3.5 py-2 rounded-xl transition-all flex items-center space-x-1.5 ${
+                      activeTab === 'speaking' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon name="mic" className="w-4 h-4" />
+                    <span>口說萬用句型特訓</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('rules')}
+                    className={`px-3.5 py-2 rounded-xl transition-all flex items-center space-x-1.5 ${
+                      activeTab === 'rules' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon name="zap" className="w-4 h-4" />
+                    <span>連音與發音變音規律</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('dictation')}
+                    className={`px-3.5 py-2 rounded-xl transition-all flex items-center space-x-1.5 ${
+                      activeTab === 'dictation' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon name="edit-3" className="w-4 h-4" />
+                    <span>聽音聽寫填空測驗</span>
+                  </button>
+                </nav>
+              </div>
+            </header>
+
+            {/* Main Content */}
+            <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
+              {activeTab === 'dialogues' && (
+                <div className="space-y-8 animate-fadeIn">
+                  {/* Scenario Selectors & Speed Controls */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-wider">選擇聽力情境 (10大場景)：</span>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {DIALOGUES_DATA.map((d, idx) => (
+                            <button
+                              key={d.id}
+                              onClick={() => {
+                                setSelectedDialogueIndex(idx);
+                                setActiveLineIdx(null);
+                                setRecordedAudioUrl(null);
+                                setRecognizedText('');
+                                setSpeakingScore(null);
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                selectedDialogueIndex === idx
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {d.title}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Speed Switcher */}
+                      <div className="flex items-center space-x-2 bg-slate-50 p-2 rounded-xl border border-slate-200 shrink-0">
+                        <span className="text-xs font-bold text-slate-500 pl-1">播放語速：</span>
+                        <button
+                          onClick={() => setPlaybackRate(1.0)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                            playbackRate === 1.0 ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          標準 (1.0x)
+                        </button>
+                        <button
+                          onClick={() => setPlaybackRate(0.7)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                            playbackRate === 0.7 ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          慢速 (0.7x)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Main Dialogue Player & Shadowing Panel */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Dialogue Sentences List */}
+                    <div className="lg:col-span-2 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 space-y-6 shadow-xs">
+                      <div className="border-b border-slate-100 pb-4 flex justify-between items-center">
+                        <div>
+                          <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-extrabold rounded-full border border-indigo-200">
+                            {currentDialogue.category} • {currentDialogue.difficulty}
+                          </span>
+                          <h2 className="text-xl font-extrabold text-slate-900 mt-2">
+                            {currentDialogue.title}
+                          </h2>
+                          <p className="text-xs text-slate-500 mt-1">{currentDialogue.description}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const fullText = currentDialogue.lines.map(l => l.text).join(' ');
+                            speakSentence(fullText, playbackRate);
+                          }}
+                          className="flex items-center space-x-1.5 px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors shadow-2xs shrink-0"
+                        >
+                          <Icon name="volume-2" className="w-4 h-4" />
+                          <span>朗讀整段對話</span>
+                        </button>
+                      </div>
+
+                      {/* Interactive Lines */}
+                      <div className="space-y-4">
+                        {currentDialogue.lines.map((line, idx) => {
+                          const isActive = activeLineIdx === idx;
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-4 rounded-2xl border transition-all ${
+                                isActive
+                                  ? 'bg-indigo-50/80 border-indigo-300 shadow-xs'
+                                  : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100/80'
+                              }`}
+                            >
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="space-y-1">
+                                  <span className="text-xs font-black text-indigo-800 bg-indigo-100/80 px-2 py-0.5 rounded">
+                                    {line.speaker}
+                                  </span>
+                                  <p className="text-base font-bold text-slate-900 pt-1 leading-snug">
+                                    {line.text}
+                                  </p>
+                                  <p className="text-xs text-slate-600">{line.zh}</p>
+                                </div>
+
+                                <button
+                                  onClick={() => {
+                                    setActiveLineIdx(idx);
+                                    speakSentence(line.text, playbackRate);
+                                  }}
+                                  className="p-2 bg-white text-indigo-600 rounded-xl border border-indigo-200 hover:bg-indigo-600 hover:text-white transition-colors shrink-0 shadow-2xs"
+                                  title="單句朗讀"
+                                >
+                                  <Icon name="volume-2" className="w-4 h-4" />
+                                </button>
+                              </div>
+
+                              {line.note && (
+                                <div className="mt-3 pt-2 border-t border-slate-200/60 text-[11px] text-indigo-900 font-medium flex items-center space-x-1">
+                                  <Icon name="info" className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                  <span>聽力解析：{line.note}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Shadowing Practice Side Panel with AI Scoring */}
+                    <div className="space-y-6">
+                      <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-5 shadow-xs">
+                        <div className="border-b border-slate-100 pb-3">
+                          <h3 className="font-extrabold text-slate-900 text-sm flex items-center space-x-1.5">
+                            <Icon name="mic" className="w-4 h-4 text-indigo-600" />
+                            <span>AI 口說跟讀評分</span>
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-1">
+                            點擊麥克風親口朗讀，系統將自動將您的語音轉為文字並計算發音精準度！
+                          </p>
+                        </div>
+
+                        {activeLineIdx !== null ? (
+                          <div className="p-4 bg-indigo-50/70 rounded-xl border border-indigo-100 text-xs space-y-2">
+                            <span className="font-bold text-indigo-900 block">當前練習句子：</span>
+                            <p className="font-bold text-slate-900 text-sm">
+                              "{currentDialogue.lines[activeLineIdx].text}"
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">
+                            💡 請點擊左側對話中的喇叭按鈕選擇欲練習的句子。
+                          </p>
+                        )}
+
+                        <div className="flex flex-col items-center justify-center py-4 space-y-3 bg-slate-50 rounded-2xl border border-slate-200">
+                          <button
+                            onClick={() => toggleRecording(activeLineIdx !== null ? currentDialogue.lines[activeLineIdx].text : '')}
+                            className={`w-14 h-14 rounded-full flex items-center justify-center text-white transition-all shadow-md ${
+                              isRecording ? 'bg-rose-500 animate-recording scale-105' : 'bg-indigo-600 hover:bg-indigo-700'
+                            }`}
+                          >
+                            <Icon name={isRecording ? 'square' : 'mic'} className="w-6 h-6" />
+                          </button>
+                          <span className="text-xs font-bold text-slate-600">
+                            {isRecording ? '語音辨識中... 再次點擊結束' : '點擊開始錄音跟讀'}
+                          </span>
+                        </div>
+
+                        {/* Recognition Result & Score */}
+                        {recognizedText && (
+                          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
+                            <span className="font-bold text-slate-700 block">AI 語音辨識結果：</span>
+                            <p className="text-slate-900 font-mono bg-white p-2 rounded border border-slate-100">
+                              "{recognizedText}"
+                            </p>
+
+                            {speakingScore !== null && (
+                              <div className="pt-2 flex justify-between items-center border-t border-slate-200">
+                                <span className="font-bold text-slate-700">口說精準度：</span>
+                                <span className={`font-black text-sm px-2.5 py-0.5 rounded-full ${
+                                  speakingScore >= 80 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {speakingScore}% {speakingScore >= 80 ? '🌟 完美發音' : '👍 良好嘗試'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {recordedAudioUrl && (
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <span className="text-xs font-bold text-slate-700 block">錄音成果播放：</span>
+                            <audio controls src={recordedAudioUrl} className="w-full h-8" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'speaking' && (
+                <div className="space-y-8 animate-fadeIn">
+                  <div className="text-center max-w-2xl mx-auto space-y-2">
+                    <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-extrabold rounded-full">
+                      口說大師講堂
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">口說萬用句型特訓</h2>
+                    <p className="text-slate-600 text-xs sm:text-sm">
+                      掌握高頻萬用句型模板，擺脫中式英語，表達更地道自然！
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {SPEAKING_PHRASES.map((item, idx) => (
+                      <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-extrabold rounded-full border border-indigo-200">
+                            {item.category}
+                          </span>
+                          <button
+                            onClick={() => speakSentence(item.example)}
+                            className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-colors"
+                          >
+                            <Icon name="volume-2" className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-extrabold text-slate-900">{item.phrase}</h3>
+                          <p className="text-xs text-slate-500 mt-0.5">{item.zh}</p>
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs space-y-1">
+                          <span className="font-bold text-indigo-900 block">實用例句示範：</span>
+                          <p className="font-bold text-slate-900">"{item.example}"</p>
+                          <p className="text-slate-500">{item.exampleZh}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'rules' && (
+                <div className="space-y-8 animate-fadeIn">
+                  <div className="text-center max-w-2xl mx-auto space-y-2">
+                    <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-extrabold rounded-full">
+                      聽力突破密碼
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">連音與發音變音規律</h2>
+                    <p className="text-slate-600 text-xs sm:text-sm">
+                      掌握口語連音、閃音與弱化，聽懂老外講話時的自然省音音調變化。
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {SPEECH_RULES.map((rule, idx) => (
+                      <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-xs flex flex-col justify-between">
+                        <div className="space-y-3">
+                          <h3 className="text-lg font-extrabold text-slate-900">{rule.title}</h3>
+                          <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            {rule.concept}
+                          </p>
+                          <div className="text-xs font-bold text-indigo-900 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                            範例對比：<br />
+                            <span className="font-mono text-indigo-700">{rule.example}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100 space-y-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-slate-700">朗讀句子：</span>
+                            <button
+                              onClick={() => speakSentence(rule.sentence, 0.9)}
+                              className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center space-x-1"
+                            >
+                              <Icon name="volume-2" className="w-4 h-4" />
+                              <span>試聽語音</span>
+                            </button>
+                          </div>
+                          <p className="text-sm font-bold text-slate-900">"{rule.sentence}"</p>
+                          <span className="text-[11px] font-mono text-slate-400 block">{rule.phoneticHint}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'dictation' && (
+                <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
+                  <div className="text-center space-y-2">
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">聽音聽寫填空測驗 (10 題精選)</h2>
+                    <p className="text-slate-600 text-xs sm:text-sm">
+                      點擊播放語音，並填入句中缺漏的關鍵聽力單字。
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 space-y-6 shadow-xs">
+                    {DICTATION_QUIZ.map((q, qIdx) => {
+                      const isChecked = quizResults[q.id] !== undefined;
+                      const isCorrect = quizResults[q.id];
+
+                      return (
+                        <div key={q.id} className="space-y-4 border-b border-slate-100 pb-6 last:border-b-0 last:pb-0">
+                          <div className="flex justify-between items-center">
+                            <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 text-xs font-black rounded">
+                              Question {qIdx + 1}
+                            </span>
+                            <button
+                              onClick={() => speakSentence(q.audioText, 0.9)}
+                              className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors shadow-2xs"
+                            >
+                              <Icon name="volume-2" className="w-4 h-4" />
+                              <span>播放聽力題目語音</span>
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-base font-bold text-slate-900">
+                              {q.blankSentence}
+                            </p>
+                            <p className="text-xs text-slate-400">💡 提示：{q.hint}</p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="請輸入聽到的單字..."
+                              value={userInputs[q.id] || ''}
+                              onChange={(e) => setUserInputs({ ...userInputs, [q.id]: e.target.value })}
+                              className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                            />
+                            <button
+                              onClick={() => handleDictationCheck(q.id, q.correctAnswer)}
+                              className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-2xs"
+                            >
+                              提交答案
+                            </button>
+                          </div>
+
+                          {isChecked && (
+                            <div className={`p-3.5 rounded-xl border text-xs ${
+                              isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'
+                            }`}>
+                              <span className="font-bold block">
+                                {isCorrect ? '✅ 答對了！太棒了！' : `❌ 答案不正確，正確單字為：${q.correctAnswer}`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </main>
+
+            {/* Footer */}
+            <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+              <p>ListeningMaster 英文聽講大師 • 語速微調與影子跟讀聽力訓練平台</p>
+            </footer>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+  </body>
+</html>
